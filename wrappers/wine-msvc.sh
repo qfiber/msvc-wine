@@ -89,4 +89,13 @@ else
 	sed -E "$WINE_MSVC_STDOUT_SED" <$WINE_MSVC_STDOUT     || kill $pid &>/dev/null &
 	sed -E "$WINE_MSVC_STDERR_SED" <$WINE_MSVC_STDERR >&2 || kill $pid &>/dev/null &
 	wait $pid &>/dev/null
+	status=$?
+	# If wine exited without ever opening the FIFOs (e.g. it crashed while
+	# starting up), the sed processes above are still blocked opening them
+	# for reading, and the wait in cleanup would hang forever. Opening each
+	# FIFO for writing (O_RDWR doesn't block) and closing it again lets them
+	# see EOF.
+	exec 3<>$WINE_MSVC_STDOUT 4<>$WINE_MSVC_STDERR
+	exec 3>&- 4>&-
+	exit $status
 fi
